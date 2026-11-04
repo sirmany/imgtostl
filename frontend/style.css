@@ -84,16 +84,6 @@ main {
 }
 input[type="checkbox"] { accent-color: #58a6ff; width: 14px; height: 14px; }
 
-.colors { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; align-items: center; }
-.colors-label { font-size: 0.75rem; color: #8b949e; }
-.swatch { display: flex; align-items: center; gap: 0.2rem; cursor: pointer; }
-.swatch span {
-  width: 18px; height: 18px;
-  border-radius: 4px;
-  border: 1px solid #30363d;
-  display: inline-block;
-}
-
 details { font-size: 0.8rem; color: #8b949e; }
 summary { cursor: pointer; }
 

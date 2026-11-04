@@ -12,7 +12,6 @@ const status = (msg, err = false) => {
 let imgId = null;
 let lastStl = null;
 let lastFile = null;
-let palette = null;
 
 // ---- three.js viewer ----
 const canvas = $("canvas");
@@ -86,46 +85,8 @@ const stlParams = () => {
   for (const k of ["height_mm", "width_mm", "bevel_mm", "bevel_scale", "base_mm", "base_margin_mm"]) {
     fd.append(k, $(k).value);
   }
-  if (palette && palette.length) {
-    const sel = [...document.querySelectorAll("#colorBox input:checked")]
-      .map((c) => c.value)
-      .join(",");
-    if (sel) fd.append("color_indices", sel);
-  }
   return fd;
 };
-
-function renderPalette(pal) {
-  const box = $("colorBox");
-  box.innerHTML = "";
-  palette = pal;
-  if (!pal || !pal.length) {
-    box.hidden = true;
-    return;
-  }
-  box.hidden = false;
-  const lbl = document.createElement("span");
-  lbl.className = "colors-label";
-  lbl.textContent = "Capas (abajo→arriba):";
-  box.appendChild(lbl);
-  pal.forEach((c, i) => {
-    const l = document.createElement("label");
-    l.className = "swatch";
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.value = c.idx;
-    cb.checked = i < pal.length - 1; // todo salvo el fondo (cluster más claro)
-    cb.title = c.color;
-    cb.addEventListener("change", () => {
-      clearTimeout(debounce);
-      debounce = setTimeout(regenerate, 300);
-    });
-    const s = document.createElement("span");
-    s.style.background = c.color;
-    l.append(cb, s);
-    box.appendChild(l);
-  });
-}
 
 for (const el of document.querySelectorAll('input[type="range"]')) {
   const out = $("o-" + el.id);
@@ -146,7 +107,6 @@ async function prepare(file) {
     if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
     const data = await r.json();
     imgId = data.id;
-    renderPalette(data.palette);
     if (data.mask_source === "alpha") {
       // máscara = canal alfa: umbral tipo rembg
       $("threshold").value = 128;
