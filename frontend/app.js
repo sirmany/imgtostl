@@ -95,21 +95,34 @@ for (const el of document.querySelectorAll('input[type="range"]')) {
 
 // ---- API calls ----
 // fuentes del sistema para el modo texto
-fetch("/api/fonts").then((r) => r.json()).then((fonts) => {
-  const sel = $("fontSel");
-  const common = ["Roboto-Bold", "Montserrat-Bold", "LiberationSans-Bold", "NotoSans-Bold", "DejaVuSerif-Bold"];
-  fonts.sort((a, b) => {
-    const ia = common.findIndex((c) => a.name.startsWith(c));
-    const ib = common.findIndex((c) => b.name.startsWith(c));
-    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.name.localeCompare(b.name);
-  });
-  for (const f of fonts) {
-    const o = document.createElement("option");
-    o.value = f.name;
-    o.textContent = f.name;
-    sel.appendChild(o);
-  }
-});
+fetch("/api/fonts")
+  .then((r) => {
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  })
+  .then((fonts) => {
+    const sel = $("fontSel");
+    const common = ["Roboto-Bold", "Montserrat-Bold", "LiberationSans-Bold", "NotoSans-Bold", "DejaVuSerif-Bold"];
+    fonts.sort((a, b) => {
+      const ia = common.findIndex((c) => a.name.startsWith(c));
+      const ib = common.findIndex((c) => b.name.startsWith(c));
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.name.localeCompare(b.name);
+    });
+    if (!fonts.length) {
+      const o = document.createElement("option");
+      o.textContent = "(sin fuentes en el servidor)";
+      o.disabled = true;
+      sel.appendChild(o);
+      return;
+    }
+    for (const f of fonts) {
+      const o = document.createElement("option");
+      o.value = f.name;
+      o.textContent = f.name;
+      sel.appendChild(o);
+    }
+  })
+  .catch((e) => status("No se pudieron cargar las fuentes: " + e.message, true));
 
 async function prepareText() {
   const text = $("txt").value;
