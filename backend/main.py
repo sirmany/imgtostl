@@ -178,9 +178,19 @@ async def get_stl(
                 )
                 z = base_mm
             EPS = 0.05  # interpenetración entre capas: unión volumétrica sin caras coplanares
-            for l in order:
+            # bandas acumulativas: cada capa cubre su color + todos los superiores,
+            # así cada banda está soportada por la anterior (imprimible)
+            import numpy as np
+
+            band = np.zeros(np.array(mask).shape, bool)
+            band_masks = [None] * len(order)
+            for j in range(len(order) - 1, -1, -1):
+                band |= np.array(order[j]["mask"]) > 0
+                band_masks[j] = band.copy()
+            for j in range(len(order)):
                 svg_l = pipeline.vectorize(
-                    l["mask"], 128, turdsize, alphamax, opttolerance, invert, 255
+                    Image.fromarray(band_masks[j].astype(np.uint8) * 255),
+                    128, turdsize, alphamax, opttolerance, invert, 255,
                 )
                 solids.append(
                     pipeline.extrude(
