@@ -123,7 +123,9 @@ async def prepare_text(
 ):
     if not text.strip():
         raise HTTPException(400, "Texto vacío")
-    fonts_map = {f["name"]: f["path"] for f in pipeline.list_fonts()}
+    fonts_map = {}
+    for f in pipeline.list_fonts():
+        fonts_map.setdefault(f["name"], f["path"])  # empaquetadas primero
     path = fonts_map.get(font)
     if not path:
         raise HTTPException(400, f"Fuente desconocida: {font}")

@@ -225,20 +225,28 @@ def extrude(
 
 
 def list_fonts():
-    """Fuentes TTF/OTF del sistema: [{name, path}]."""
+    """Fuentes TTF/OTF: primero las empaquetadas en backend/fonts (igual en
+    local y Docker), luego las del sistema. Devuelve [{name, path}]."""
+    bundled = os.path.join(os.path.dirname(__file__), "fonts")
     roots = [
+        bundled,
         "/usr/share/fonts",
         os.path.expanduser("~/.fonts"),
         os.path.expanduser("~/.local/share/fonts"),
     ]
     out = []
+    seen = set()
     for root in roots:
         if not os.path.isdir(root):
             continue
         for dirpath, _, files in os.walk(root):
             for f in files:
                 if f.lower().endswith((".ttf", ".otf")):
-                    out.append({"name": os.path.splitext(f)[0], "path": os.path.join(dirpath, f)})
+                    name = os.path.splitext(f)[0]
+                    if name in seen:  # la empaquetada gana (raíz prioritaria primero)
+                        continue
+                    seen.add(name)
+                    out.append({"name": name, "path": os.path.join(dirpath, f)})
     out.sort(key=lambda d: d["name"].lower())
     return out
 

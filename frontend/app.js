@@ -97,7 +97,7 @@ for (const el of document.querySelectorAll('input[type="range"]')) {
 // fuentes del sistema para el modo texto
 fetch("/api/fonts").then((r) => r.json()).then((fonts) => {
   const sel = $("fontSel");
-  const common = ["DejaVuSans-Bold", "DejaVuSans", "Roboto-Bold", "Montserrat-Bold", "Arial"];
+  const common = ["Roboto-Bold", "Montserrat-Bold", "LiberationSans-Bold", "NotoSans-Bold", "DejaVuSerif-Bold"];
   fonts.sort((a, b) => {
     const ia = common.findIndex((c) => a.name.startsWith(c));
     const ib = common.findIndex((c) => b.name.startsWith(c));
