@@ -94,6 +94,66 @@ for (const el of document.querySelectorAll('input[type="range"]')) {
 }
 
 // ---- API calls ----
+// fuentes del sistema para el modo texto
+fetch("/api/fonts").then((r) => r.json()).then((fonts) => {
+  const sel = $("fontSel");
+  const common = ["DejaVuSans-Bold", "DejaVuSans", "Roboto-Bold", "Montserrat-Bold", "Arial"];
+  fonts.sort((a, b) => {
+    const ia = common.findIndex((c) => a.name.startsWith(c));
+    const ib = common.findIndex((c) => b.name.startsWith(c));
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.name.localeCompare(b.name);
+  });
+  for (const f of fonts) {
+    const o = document.createElement("option");
+    o.value = f.name;
+    o.textContent = f.name;
+    sel.appendChild(o);
+  }
+});
+
+async function prepareText() {
+  const text = $("txt").value;
+  if (!text.trim()) {
+    status("Escribe algo de texto", true);
+    return;
+  }
+  status("Generando texto…");
+  $("download").disabled = true;
+  const fd = vectorParams();
+  for (const [k, v] of [
+    ["text", text],
+    ["font", $("fontSel").value],
+    ["size", $("txtSize").value],
+    ["spacing", $("txtSpacing").value],
+    ["stroke", $("txtStroke").value],
+    ["hollow", $("txtHollow").checked],
+  ]) fd.append(k, v);
+  if (imgId && $("txtCombine").checked) fd.append("combine_id", imgId);
+  try {
+    const r = await fetch("/api/prepare_text", { method: "POST", body: fd });
+    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+    const data = await r.json();
+    imgId = data.id;
+    if (data.mask_source === "text" || data.mask_source === "luma") {
+      // texto negro sobre blanco: umbral luma
+      $("threshold").value = 0;
+      $("threshold_hi").value = 200;
+      $("invert").checked = false;
+      Object.assign(modeParams.luma, { threshold: 0, threshold_hi: 200, invert: false });
+      for (const k of ["threshold", "threshold_hi"]) $("o-" + k).textContent = $(k).value;
+    }
+    $("maskImg").src = "data:image/png;base64," + data.mask_png;
+    $("maskImg").hidden = false;
+    $("svgBox").innerHTML = data.svg;
+    $("combineRow").hidden = false;
+    status("Texto listo. Generando 3D…");
+    await regenerate();
+  } catch (e) {
+    status("Error: " + e.message, true);
+  }
+}
+$("genText").addEventListener("click", prepareText);
+
 async function prepare(file) {
   lastFile = file;
   const luma = $("luma").checked;
@@ -121,9 +181,11 @@ async function prepare(file) {
     $("maskImg").src = "data:image/png;base64," + data.mask_png;
     $("maskImg").hidden = false;
     $("svgBox").innerHTML = data.svg;
+    $("combineRow").hidden = false;
     await regenerate();
   } catch (e) {
     status("Error: " + e.message, true);
+    $("download").disabled = true;
   }
 }
 

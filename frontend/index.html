@@ -31,6 +31,30 @@
       <div class="slider check">
         <label><input type="checkbox" id="luma" /> Modo luminancia (sin IA)</label>
       </div>
+      <details id="textBox">
+        <summary>Añadir texto</summary>
+        <textarea id="txt" rows="2" placeholder="Escribe aquí…"></textarea>
+        <select id="fontSel"></select>
+        <div class="slider">
+          <label>Tamaño (px) <output id="o-txtSize">120</output></label>
+          <input type="range" id="txtSize" min="20" max="400" value="120" />
+        </div>
+        <div class="slider">
+          <label>Espaciado (px) <output id="o-txtSpacing">0</output></label>
+          <input type="range" id="txtSpacing" min="-20" max="80" value="0" />
+        </div>
+        <div class="slider">
+          <label>Grosor / contorno <output id="o-txtStroke">0</output></label>
+          <input type="range" id="txtStroke" min="0" max="20" value="0" />
+        </div>
+        <div class="slider check">
+          <label><input type="checkbox" id="txtHollow" /> Solo contorno (hueco)</label>
+        </div>
+        <div class="slider check" id="combineRow" hidden>
+          <label><input type="checkbox" id="txtCombine" /> Debajo de la imagen</label>
+        </div>
+        <button id="genText">Generar texto</button>
+      </details>
       <div id="status" class="status"></div>
     </section>
 

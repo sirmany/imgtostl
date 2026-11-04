@@ -7,7 +7,7 @@ import tempfile
 
 import numpy as np
 import trimesh
-from PIL import Image, ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 from rembg import new_session, remove
 from shapely.affinity import scale as shp_scale
 from shapely.ops import unary_union
@@ -222,6 +222,59 @@ def extrude(
     # anclar: esquina mínima en el origen
     mesh.apply_translation(-mesh.bounds[0])
     return mesh
+
+
+def list_fonts():
+    """Fuentes TTF/OTF del sistema: [{name, path}]."""
+    roots = [
+        "/usr/share/fonts",
+        os.path.expanduser("~/.fonts"),
+        os.path.expanduser("~/.local/share/fonts"),
+    ]
+    out = []
+    for root in roots:
+        if not os.path.isdir(root):
+            continue
+        for dirpath, _, files in os.walk(root):
+            for f in files:
+                if f.lower().endswith((".ttf", ".otf")):
+                    out.append({"name": os.path.splitext(f)[0], "path": os.path.join(dirpath, f)})
+    out.sort(key=lambda d: d["name"].lower())
+    return out
+
+
+def render_text(text, font_path, size=120, spacing=0.0, stroke=0, hollow=False):
+    """Renderiza texto a máscara PIL (L): negro sobre blanco (semántica luma).
+
+    spacing: px extra entre caracteres. stroke: grosor de contorno en px
+    (también sirve de 'negrita'). hollow: solo el contorno (letras huecas).
+    """
+    font = ImageFont.truetype(font_path, int(size))
+    lines = text.split("\n") if text else [""]
+    probe = ImageDraw.Draw(Image.new("L", (1, 1)))
+    asc, desc = font.getmetrics()
+    line_h = asc + desc
+    pad = stroke + max(6, int(size) // 6)
+
+    widths = [
+        sum(probe.textlength(c, font=font) for c in ln) + spacing * max(0, len(ln) - 1)
+        for ln in lines
+    ]
+    W = int(max(widths + [1]) + 2 * pad) + 1
+    H = int(line_h * len(lines) + 2 * pad)
+    img = Image.new("L", (W, H), 255)
+    d = ImageDraw.Draw(img)
+    y = pad
+    for ln in lines:
+        x = pad
+        for c in ln:
+            if hollow:
+                d.text((x, y), c, font=font, fill=255, stroke_width=int(stroke), stroke_fill=0)
+            else:
+                d.text((x, y), c, font=font, fill=0, stroke_width=int(stroke), stroke_fill=0)
+            x += probe.textlength(c, font=font) + spacing
+        y += line_h
+    return img
 
 
 def stl_bytes(mesh: trimesh.Trimesh) -> bytes:

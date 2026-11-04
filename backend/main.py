@@ -5,7 +5,7 @@ import secrets
 import uuid
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from PIL import Image
+from PIL import Image, ImageOps
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -88,7 +88,7 @@ async def prepare(
     if len(_masks) >= MAX_CACHE:
         _masks.pop(next(iter(_masks)))
     img_id = uuid.uuid4().hex
-    _masks[img_id] = mask
+    _masks[img_id] = {"mask": mask, "source": mask_source}
     return JSONResponse(
         {
             "id": img_id,
@@ -99,11 +99,90 @@ async def prepare(
     )
 
 
+@app.get("/api/fonts")
+async def fonts():
+    return pipeline.list_fonts()
+
+
+@app.post("/api/prepare_text")
+async def prepare_text(
+    text: str = Form(""),
+    font: str = Form(""),
+    size: int = Form(120),
+    spacing: float = Form(0.0),
+    stroke: int = Form(0),
+    hollow: bool = Form(False),
+    combine_id: str = Form(""),
+    gap: int = Form(20),
+    threshold: int = Form(0),
+    turdsize: int = Form(8),
+    alphamax: float = Form(1.0),
+    opttolerance: float = Form(0.3),
+    invert: bool = Form(False),
+    threshold_hi: int = Form(200),
+):
+    if not text.strip():
+        raise HTTPException(400, "Texto vacío")
+    fonts_map = {f["name"]: f["path"] for f in pipeline.list_fonts()}
+    path = fonts_map.get(font)
+    if not path:
+        raise HTTPException(400, f"Fuente desconocida: {font}")
+    try:
+        mask = pipeline.render_text(text, path, size, spacing, stroke, hollow)
+        source = "text"
+
+        # combinar: texto debajo de una máscara existente
+        entry = _masks.get(combine_id) if combine_id else None
+        if entry:
+            base, bsrc = entry["mask"], entry["source"]
+            bw, bh = base.size
+            tw, th = mask.size
+            W, H = max(bw, tw), bh + gap + th
+            pos = ((W - tw) // 2, bh + gap)
+            if bsrc in ("alpha", "rembg"):
+                # semántica alfa: objeto=blanco
+                canvas = Image.new("L", (W, H), 0)
+                canvas.paste(base, (0, 0))
+                canvas.paste(ImageOps.invert(mask), pos)
+                source = bsrc
+            else:
+                # semántica luma/texto: objeto=negro
+                canvas = Image.new("L", (W, H), 255)
+                canvas.paste(base, (0, 0))
+                canvas.paste(mask, pos)
+                source = "luma"
+            mask = canvas
+
+        if source in ("alpha", "rembg"):
+            svg = pipeline.vectorize(mask, 128, turdsize, alphamax, opttolerance, invert, 255)
+        else:
+            svg = pipeline.vectorize(
+                mask, threshold, turdsize, alphamax, opttolerance, invert, threshold_hi
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(422, f"Error procesando texto: {e}")
+
+    if len(_masks) >= MAX_CACHE:
+        _masks.pop(next(iter(_masks)))
+    img_id = uuid.uuid4().hex
+    _masks[img_id] = {"mask": mask, "source": source}
+    return JSONResponse(
+        {
+            "id": img_id,
+            "mask_png": pipeline.mask_png_b64(mask),
+            "svg": svg,
+            "mask_source": source,
+        }
+    )
+
+
 def _get_mask(img_id: str):
-    mask = _masks.get(img_id)
-    if mask is None:
+    entry = _masks.get(img_id)
+    if entry is None:
         raise HTTPException(404, "Imagen no encontrada, vuelve a subirla")
-    return mask
+    return entry["mask"]
 
 
 @app.post("/api/svg")
