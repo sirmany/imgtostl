@@ -154,6 +154,57 @@ def _loft_polygon(poly, stages):
     return verts, faces
 
 
+def color_masks(img: Image.Image, n_colors: int = 6):
+    """Cuantiza la imagen RGB en clusters de color.
+
+    Devuelve lista ordenada oscuro->claro de dicts
+    {idx, color('#rrggbb'), count, mask (PIL L: 255=cluster)}.
+    """
+    q = img.convert("RGB").quantize(colors=n_colors * 2, method=Image.Quantize.MEDIANCUT)
+    pal = q.getpalette()
+    labels = np.array(q)
+    total = labels.size
+    raw = []
+    for i in range(n_colors * 2):
+        sel = labels == i
+        cnt = int(sel.sum())
+        if cnt < total * 0.005:  # ignorar clusters ínfimos
+            continue
+        r, g, b = pal[i * 3 : i * 3 + 3]
+        raw.append({"rgb": np.array([r, g, b], float), "count": cnt, "sel": sel})
+
+    # fusionar clusters cuyo color es casi igual (blancos/grises adyacentes)
+    merged = []
+    for c in raw:
+        target = None
+        for m in merged:
+            if np.linalg.norm(m["rgb"] - c["rgb"]) < 36:
+                target = m
+                break
+        if target is None:
+            merged.append(dict(c))
+        else:
+            w = target["count"] + c["count"]
+            target["rgb"] = (target["rgb"] * target["count"] + c["rgb"] * c["count"]) / w
+            target["count"] = w
+            target["sel"] = target["sel"] | c["sel"]
+
+    out = []
+    for i, m in enumerate(merged):
+        r, g, b = (int(v) for v in m["rgb"])
+        out.append(
+            {
+                "idx": i,
+                "color": "#%02x%02x%02x" % (r, g, b),
+                "lum": 0.299 * r + 0.587 * g + 0.114 * b,
+                "count": m["count"],
+                "mask": Image.fromarray((m["sel"] * 255).astype(np.uint8)),
+            }
+        )
+    out.sort(key=lambda d: d["lum"])  # oscuro abajo -> claro arriba
+    return out
+
+
 def extrude(
     svg_str: str,
     height_mm: float = 5.0,
@@ -162,12 +213,15 @@ def extrude(
     bevel_scale: float = 0.85,
     base_mm: float = 0.0,
     base_margin_mm: float = 2.0,
+    z_shift_mm: float = 0.0,
+    anchor: bool = True,
+    scale_override: float = None,
 ) -> trimesh.Trimesh:
     path = _svg_to_path2d(svg_str)
     if len(path.polygons_full) == 0:
         raise ValueError("El SVG no contiene formas")
     sx, sy = path.extents
-    scale = width_mm / float(max(sx, sy))
+    scale = scale_override or width_mm / float(max(sx, sy))
 
     z_off = max(0.0, base_mm)
     b = max(0.0, min(bevel_mm, height_mm * 0.49))
@@ -219,7 +273,27 @@ def extrude(
             # fallback: concatenar (multi-shell, slicers lo aceptan)
             mesh = trimesh.util.concatenate(solids)
             trimesh.repair.fix_normals(mesh)
-    # anclar: esquina mínima en el origen
+    if z_shift_mm:
+        mesh.apply_translation([0, 0, z_shift_mm])
+    if anchor:
+        # anclar: esquina mínima en el origen
+        mesh.apply_translation(-mesh.bounds[0])
+    return mesh
+
+
+def unite(solids):
+    """Une una lista de mallas (manifold si es posible) y ancla al origen."""
+    if len(solids) == 1:
+        mesh = solids[0]
+    else:
+        try:
+            mesh = trimesh.boolean.union(solids, engine="manifold")
+        except Exception as e:
+            import logging
+
+            logging.getLogger("imgtostl").warning("union manifold falló: %r", e)
+            mesh = trimesh.util.concatenate(solids)
+            trimesh.repair.fix_normals(mesh)
     mesh.apply_translation(-mesh.bounds[0])
     return mesh
 
