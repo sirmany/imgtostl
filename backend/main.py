@@ -1,14 +1,45 @@
+import base64
 import io
+import os
+import secrets
 import uuid
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from PIL import Image
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from . import pipeline
 
+# Contraseña opcional: si APP_PASSWORD está definida, toda la app pide Basic Auth.
+APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
+
 app = FastAPI(title="imgtostl")
+
+
+class BasicAuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        if not APP_PASSWORD:
+            return await call_next(request)
+        ok = False
+        auth = request.headers.get("authorization", "")
+        if auth.startswith("Basic "):
+            try:
+                _, pwd = base64.b64decode(auth[6:]).decode().split(":", 1)
+                ok = secrets.compare_digest(pwd, APP_PASSWORD)
+            except Exception:
+                pass
+        if not ok:
+            return PlainTextResponse(
+                "Autenticación requerida",
+                401,
+                {"WWW-Authenticate": 'Basic realm="imgtostl"'},
+            )
+        return await call_next(request)
+
+
+app.add_middleware(BasicAuthMiddleware)
 
 # Cache en memoria: id -> máscara PIL (L)
 _masks: dict[str, object] = {}

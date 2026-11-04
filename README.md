@@ -24,6 +24,28 @@ Abrir http://localhost:8000
 
 La primera conversión descarga el modelo u2net (~170MB) en `~/.rembg/models/`.
 
+## Contraseña (opcional)
+
+Si defines `APP_PASSWORD`, toda la app exige HTTP Basic Auth (cualquier usuario, esa contraseña):
+
+```bash
+export APP_PASSWORD='tu-contraseña'
+.venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000
+```
+
+Sin `APP_PASSWORD` la app no pide auth (útil en local). En Coolify añádela como
+variable de entorno del servicio — no la pongas en el repo.
+
+## Despliegue (Docker / Coolify)
+
+```bash
+docker build -t imgtostl .
+docker run -p 8000:8000 -e APP_PASSWORD='tu-contraseña' imgtostl
+```
+
+En Coolify: Application → repo GitHub → Build Pack `Dockerfile` → puerto `8000` →
+añade `APP_PASSWORD` en Environment. RAM ≥1.5GB (rembg/onnxruntime).
+
 ## Pipeline
 
 1. `rembg` (u2net) → máscara alfa del objeto
