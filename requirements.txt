@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+rembg[cpu]
+pillow
+numpy
+trimesh
+shapely
+svgpathtools
+lxml
+svg.path
+rtree
+mapbox-earcut
+manifold3d
+python-multipart

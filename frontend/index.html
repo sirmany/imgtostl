@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>imgtostl — Imagen a 3D</title>
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <header>
+    <h1>imgtostl</h1>
+    <p>Imagen → sin fondo → vector → STL para imprimir</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>1 · Imagen</h2>
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept="image/*" hidden />
+        <span id="dropText">Arrastra una imagen o haz clic</span>
+        <img id="previewImg" alt="" hidden />
+      </label>
+      <div class="slider check">
+        <label><input type="checkbox" id="luma" /> Modo luminancia (sin IA)</label>
+      </div>
+      <div id="status" class="status"></div>
+    </section>
+
+    <section class="panel">
+      <h2>2 · Vector</h2>
+      <img id="maskImg" class="thumb" alt="máscara" hidden />
+      <div id="svgBox" class="svgbox"></div>
+      <details>
+        <summary>Parámetros de vectorización</summary>
+        <div class="slider">
+          <label>Umbral mín. <output id="o-threshold">128</output></label>
+          <input type="range" id="threshold" min="0" max="255" value="128" />
+        </div>
+        <div class="slider">
+          <label>Umbral máx. <output id="o-threshold_hi">255</output></label>
+          <input type="range" id="threshold_hi" min="0" max="255" value="255" />
+        </div>
+        <div class="slider">
+          <label>Detalle mínimo (px) <output id="o-turdsize">8</output></label>
+          <input type="range" id="turdsize" min="0" max="100" value="8" />
+        </div>
+        <div class="slider">
+          <label>Suavizado <output id="o-opttolerance">0.3</output></label>
+          <input type="range" id="opttolerance" min="0" max="2" step="0.05" value="0.3" />
+        </div>
+        <div class="slider check">
+          <label><input type="checkbox" id="invert" /> Invertir máscara</label>
+        </div>
+      </details>
+    </section>
+
+    <section class="panel">
+      <h2>3 · 3D</h2>
+      <div class="slider">
+        <label>Altura (mm) <output id="o-height_mm">5</output></label>
+        <input type="range" id="height_mm" min="1" max="50" value="5" />
+      </div>
+      <div class="slider">
+        <label>Ancho máx. (mm) <output id="o-width_mm">100</output></label>
+        <input type="range" id="width_mm" min="10" max="300" value="100" />
+      </div>
+      <div class="slider">
+        <label>Bisel (mm) <output id="o-bevel_mm">0</output></label>
+        <input type="range" id="bevel_mm" min="0" max="10" step="0.5" value="0" />
+      </div>
+      <div class="slider">
+        <label>Factor bisel <output id="o-bevel_scale">0.85</output></label>
+        <input type="range" id="bevel_scale" min="0.1" max="1" step="0.05" value="0.85" />
+      </div>
+      <div class="slider">
+        <label>Placa base (mm) <output id="o-base_mm">0</output></label>
+        <input type="range" id="base_mm" min="0" max="10" step="0.5" value="0" />
+      </div>
+      <div class="slider">
+        <label>Margen placa (mm) <output id="o-base_margin_mm">2</output></label>
+        <input type="range" id="base_margin_mm" min="0" max="10" step="0.5" value="2" />
+      </div>
+      <button id="regen">Regenerar 3D</button>
+      <button id="download" disabled>Descargar STL</button>
+    </section>
+
+    <section class="viewer">
+      <canvas id="canvas"></canvas>
+    </section>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
